@@ -59,7 +59,7 @@ func NewClient(atcurl, team, username, password string) (*Client, error) {
 		return nil, err
 	}
 
-	s, err := semver.NewConstraint("< 4.0.0")
+	three, err := semver.NewConstraint("< 4.0.0")
 	if err != nil {
 		return nil, err
 	}
@@ -69,28 +69,41 @@ func NewClient(atcurl, team, username, password string) (*Client, error) {
 		return nil, err
 	}
 
-	up, err := semver.NewConstraint("< 5.5.0")
+	cookie, err := semver.NewConstraint("< 5.5.0")
+	if err != nil {
+		return nil, err
+	}
+
+	six, err := semver.NewConstraint(">= 6.0.0")
 	if err != nil {
 		return nil, err
 	}
 
 	// Check if target Concourse is less than '4.0.0'.
-	if s.Check(v) {
+	if three.Check(v) {
 		err = c.loginLegacy(username, password)
-	} else {
-		t, err := c.login(username, password)
-		if err != nil {
-			return nil, err
-		}
-		
-		// Check if the version is less than '5.5.0'.
-		if up.Check(v) {
-			err = c.singleCookie(t)
-		} else {
-			err = c.splitToken(t)
-		}
+		return c, err
 	}
 
+	var url string
+	// Check if target Concourse is greater than or equal to '6.0.0'.
+	if six.Check(v) {
+		url = fmt.Sprintf("%s/sky/issuer/token", c.atcurl)
+	} else {
+		url = fmt.Sprintf("%s/sky/token", c.atcurl)
+	}
+
+	t, err := c.login(url, username, password)
+	if err != nil {
+		return nil, err
+	}
+
+	// Check if the version is less than '5.5.0'.
+	if cookie.Check(v) {
+		err = c.singleCookie(t)
+	} else {
+		err = c.splitToken(t)
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -161,12 +174,11 @@ func (c *Client) splitToken(t *oauth2.Token) error {
 }
 
 // login gets an access token from Concourse.
-func (c *Client) login(username, password string) (*oauth2.Token, error) {
-	u := fmt.Sprintf("%s/sky/token", c.atcurl)
+func (c *Client) login(url, username, password string) (*oauth2.Token, error) {
 	config := oauth2.Config{
 		ClientID:     "fly",
 		ClientSecret: "Zmx5",
-		Endpoint:     oauth2.Endpoint{TokenURL: u},
+		Endpoint:     oauth2.Endpoint{TokenURL: url},
 		Scopes:       []string{"openid", "profile", "email", "federated:id", "groups"},
 	}
 	ctx := context.WithValue(context.Background(), oauth2.HTTPClient, c.conn)

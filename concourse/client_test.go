@@ -39,6 +39,12 @@ func TestNewClient(t *testing.T) {
 
 			version: "4.0.0",
 		},
+		"skymarshal 6.0": {
+			username: "admin",
+			password: "sup3rs3cret1",
+
+			version: "6.0.0",
+		},
 		"multi cookie": {
 			username: "admin",
 			password: "sup3rs3cret1",
